@@ -644,6 +644,9 @@ do
       --  For example, in C this would take you to the header.
       map('grD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
 
+      -- Match the usual Vim/Neovim muscle memory for "go to definition".
+      map('gd', vim.lsp.buf.definition, '[G]oto [D]efinition')
+
       -- The following two autocommands are used to highlight references of the
       -- word under your cursor when your cursor rests there for a little while.
       --    See `:help CursorHold` for information about when this is executed
@@ -697,9 +700,7 @@ do
     --    https://github.com/pmizio/typescript-tools.nvim
     --
     -- But for many setups, the LSP (`ts_ls`) will work just fine
-    -- ts_ls = {},
-
-    stylua = {}, -- Used to format Lua code
+    ts_ls = {},
 
     -- Special Lua Config, as recommended by neovim help docs
     lua_ls = {
@@ -746,32 +747,35 @@ do
   -- Automatically install LSPs and related tools to stdpath for Neovim
   require('mason').setup {}
 
-  -- Ensure the servers and tools above are installed
+  -- Install real LSP servers from the `servers` table above.
+  -- Add a server here if you want it both installed and enabled for go-to-definition, diagnostics, etc.
+  require('mason-lspconfig').setup {
+    ensure_installed = vim.tbl_keys(servers),
+  }
+
+  -- Install non-LSP tools here.
   --
   -- To check the current status of installed tools and/or manually install
   -- other tools, you can run
   --    :Mason
   --
   -- You can press `g?` for help in this menu.
-  local ensure_installed = vim.tbl_keys(servers or {})
-  vim.list_extend(ensure_installed, {
-    -- You can add other tools here that you want Mason to install
-    'apex-language-server',
-    'ts_ls',
-    'cspell-lsp',
-    'docker-compose-language-service',
-    'docker-language-server',
-    'gh-actions-language-server',
-    'helm-ls',
-    'java-language-server',
-    'jq-lsp',
-    'kotlin-language-server',
-    'mdx-analyzer',
-    'postgres-language-server',
-    'typescript-language-server',
-  })
-
-  require('mason-tool-installer').setup { ensure_installed = ensure_installed }
+  require('mason-tool-installer').setup {
+    ensure_installed = {
+      'stylua',
+      'apex-language-server',
+      'cspell-lsp',
+      'docker-compose-language-service',
+      'docker-language-server',
+      'gh-actions-language-server',
+      'helm-ls',
+      'java-language-server',
+      'jq-lsp',
+      'kotlin-language-server',
+      'mdx-analyzer',
+      'postgres-language-server',
+    },
+  }
 
   for name, server in pairs(servers) do
     vim.lsp.config(name, server)
