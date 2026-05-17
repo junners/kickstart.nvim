@@ -247,6 +247,12 @@ do
     group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
     callback = function() vim.hl.on_yank() end,
   })
+
+  vim.filetype.add {
+    extension = {
+      mdx = 'mdx',
+    },
+  }
 end
 
 -- ============================================================
@@ -686,6 +692,12 @@ do
     end,
   })
 
+  local mdx_server = (function()
+    local candidates = vim.fn.glob(vim.fn.expand '~/.nvm/versions/node/*/bin/mdx-language-server', false, true)
+    table.sort(candidates)
+    return candidates[#candidates] or vim.fn.exepath 'mdx-language-server'
+  end)()
+
   -- Enable the following language servers
   --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
   --  See `:help lsp-config` for information about keys and how to configure
@@ -701,6 +713,21 @@ do
     --
     -- But for many setups, the LSP (`ts_ls`) will work just fine
     ts_ls = {},
+
+    mdx_analyzer = {
+      cmd = {
+        mdx_server,
+        '--stdio',
+      },
+      capabilities = {
+        workspace = {
+          didChangeWatchedFiles = {
+            dynamicRegistration = false,
+            relativePatternSupport = false,
+          },
+        },
+      },
+    },
 
     cspell_ls = {
       root_markers = { 'cspell.config.yaml', '.git', 'package.json' },
@@ -781,7 +808,6 @@ do
       'java-language-server',
       'jq-lsp',
       'kotlin-language-server',
-      'mdx-analyzer',
       'postgres-language-server',
     },
   }
@@ -932,12 +958,23 @@ do
 
   -- NOTE: You can also specify a branch or a specific commit
   vim.pack.add({
+    { src = 'https://github.com/nvim-treesitter/nvim-treesitter', version = 'master' },
     { src = 'https://github.com/nvim-tree/nvim-web-devicons' }, -- optional
     { src = 'https://github.com/nvim-tree/nvim-tree.lua' },
   })
 
   -- optionally enable 24-bit colour
   vim.opt.termguicolors = true
+
+  vim.cmd.packadd 'nvim-treesitter'
+  local has_treesitter = pcall(require, 'nvim-treesitter')
+  if has_treesitter then
+    vim.treesitter.language.register('markdown', 'mdx')
+    vim.api.nvim_create_autocmd('FileType', {
+      pattern = 'mdx',
+      callback = function(args) vim.treesitter.start(args.buf, 'markdown') end,
+    })
+  end
 
   local config = {
     sort = {
