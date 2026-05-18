@@ -101,7 +101,11 @@ do
   vim.g.maplocalleader = ' '
 
   -- Set to true if you have a Nerd Font installed and selected in the terminal
-  vim.g.have_nerd_font = false
+  vim.g.have_nerd_font = true
+
+  if vim.fn.has 'gui_running' == 1 or vim.g.neovide or vim.g.gonvim_running or vim.g.GuiLoaded then
+    vim.o.guifont = 'RobotoMono Nerd Font:h14'
+  end
 
   -- [[ Setting options ]]
   --  See `:help vim.o`
@@ -391,7 +395,71 @@ do
   -- change the command under that to load whatever the name of that colorscheme is.
   --
   -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-  vim.pack.add { gh 'folke/tokyonight.nvim' }
+  vim.pack.add {
+    gh 'folke/tokyonight.nvim',
+    gh 'navarasu/onedark.nvim',
+    gh 'scottmckendry/cyberdream.nvim'
+  }
+  require("cyberdream").setup({
+    -- Set light or dark variant
+    variant = "default", -- use "light" for the light variant. Also accepts "auto" to set dark or light colors based on the current value of `vim.o.background`
+
+    -- Enable transparent background
+    transparent = true,
+
+    -- Reduce the overall saturation of colours for a more muted look
+    saturation = 0, -- accepts a value between 0 and 1. 0 will be fully desaturated (greyscale) and 1 will be the full color (default)
+
+    -- Enable italics comments
+    italic_comments = true,
+
+    -- Replace all fillchars with ' ' for the ultimate clean look
+    hide_fillchars = true,
+
+    -- Apply a modern borderless look to pickers like Telescope, Snacks Picker & Fzf-Lua
+    borderless_pickers = true,
+
+    -- Set terminal colors used in `:terminal`
+    terminal_colors = true,
+
+    -- Improve start up time by caching highlights. Generate cache with :CyberdreamBuildCache and clear with :CyberdreamClearCache
+    cache = false,
+
+    -- Override highlight groups with your own colour values
+    highlights = {
+        -- Highlight groups to override, adding new groups is also possible
+        -- See `:h highlight-groups` for a list of highlight groups or run `:hi` to see all groups and their current values
+
+        -- Example:
+        Comment = { fg = "#696969", bg = "NONE", italic = true },
+
+        -- More examples can be found in `lua/cyberdream/extensions/*.lua`
+    },
+
+    -- Override a highlight group entirely using the built-in colour palette
+    overrides = function(colors) -- NOTE: This function nullifies the `highlights` option
+        -- Example:
+        return {
+            Comment = { fg = colors.green, bg = "NONE", italic = true },
+            ["@property"] = { fg = colors.magenta, bold = true },
+        }
+    end,
+
+    -- Disable or enable colorscheme extensions
+    extensions = {
+        telescope = true,
+        notify = true,
+        mini = true,
+        cmp = true,
+        gitsigns = true,
+        base = true
+    },
+
+  })
+
+  require('onedark').setup {
+    style = 'darker',
+  }
   ---@diagnostic disable-next-line: missing-fields
   require('tokyonight').setup {
     styles = {
@@ -400,8 +468,6 @@ do
   }
 
   -- Load the colorscheme here.
-  -- Like many other themes, this one has different styles, and you could load
-  -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
   vim.cmd.colorscheme 'tokyonight-night'
 
   -- Highlight todo, notes, etc in comments
@@ -808,6 +874,7 @@ do
       'java-language-server',
       'jq-lsp',
       'kotlin-language-server',
+      'prettierd',
       'postgres-language-server',
     },
   }
@@ -830,8 +897,17 @@ do
     format_on_save = function(bufnr)
       -- You can specify filetypes to autoformat on save here:
       local enabled_filetypes = {
-        -- lua = true,
-        -- python = true,
+        javascript = true,
+        javascriptreact = true,
+        typescript = true,
+        typescriptreact = true,
+        css = true,
+        scss = true,
+        html = true,
+        json = true,
+        yaml = true,
+        markdown = true,
+        mdx = true,
       }
       if enabled_filetypes[vim.bo[bufnr].filetype] then
         return { timeout_ms = 500 }
