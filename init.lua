@@ -780,6 +780,15 @@ do
     -- But for many setups, the LSP (`ts_ls`) will work just fine
     ts_ls = {},
 
+    kotlin_language_server = {
+      cmd = { 'mise', 'exec', '--', 'kotlin-language-server' },
+      on_attach = function(client)
+        -- kotlin-language-server currently throws while handling documentHighlight
+        -- on this Spring Boot project; keep the rest of the LSP usable.
+        client.server_capabilities.documentHighlightProvider = false
+      end,
+    },
+
     mdx_analyzer = {
       cmd = {
         mdx_server,
