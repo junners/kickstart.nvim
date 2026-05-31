@@ -730,7 +730,13 @@ do
         vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
           buffer = event.buf,
           group = highlight_augroup,
-          callback = vim.lsp.buf.document_highlight,
+          callback = function()
+            for _, active_client in ipairs(vim.lsp.get_clients { bufnr = event.buf }) do
+              if active_client:supports_method('textDocument/documentHighlight', event.buf) then
+                return vim.lsp.buf.document_highlight()
+              end
+            end
+          end,
         })
 
         vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
@@ -780,13 +786,8 @@ do
     -- But for many setups, the LSP (`ts_ls`) will work just fine
     ts_ls = {},
 
-    kotlin_language_server = {
-      cmd = { 'mise', 'exec', '--', 'kotlin-language-server' },
-      on_attach = function(client)
-        -- kotlin-language-server currently throws while handling documentHighlight
-        -- on this Spring Boot project; keep the rest of the LSP usable.
-        client.server_capabilities.documentHighlightProvider = false
-      end,
+    kotlin_lsp = {
+      cmd = { 'mise', 'exec', '--', 'intellij-server', '--stdio' },
     },
 
     mdx_analyzer = {
@@ -862,6 +863,9 @@ do
   -- Add a server here if you want it both installed and enabled for go-to-definition, diagnostics, etc.
   require('mason-lspconfig').setup {
     ensure_installed = vim.tbl_keys(servers),
+    automatic_enable = {
+      exclude = { 'kotlin_language_server' },
+    },
   }
 
   -- Install non-LSP tools here.
@@ -882,7 +886,8 @@ do
       'helm-ls',
       'java-language-server',
       'jq-lsp',
-      'kotlin-language-server',
+      'kotlin-lsp',
+      'ktfmt',
       'prettierd',
       'postgres-language-server',
     },
@@ -917,6 +922,7 @@ do
         yaml = true,
         markdown = true,
         mdx = true,
+        kotlin = true,
       }
       if enabled_filetypes[vim.bo[bufnr].filetype] then
         return { timeout_ms = 500 }
@@ -930,6 +936,9 @@ do
     formatters = {
       prettierd = { require_cwd = true },
       prettier = { require_cwd = true },
+      ktfmt = {
+        args = { '--kotlinlang-style', '-' },
+      },
     },
     formatters_by_ft = {
       javascript = { "prettierd", "prettier", stop_after_first = true },
@@ -943,6 +952,7 @@ do
       yaml = { "prettierd", "prettier", stop_after_first = true },
       markdown = { "prettierd", "prettier", stop_after_first = true },
       mdx = { "prettierd", "prettier", stop_after_first = true },
+      kotlin = { "ktfmt" },
     },
   }
 
