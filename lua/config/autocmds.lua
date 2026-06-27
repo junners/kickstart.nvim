@@ -8,6 +8,16 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 
 vim.filetype.add {
   extension = {
+    apex = 'apex',
+    app = 'aura',
+    auradoc = 'aura',
+    cls = 'apex',
+    cmp = 'aura',
+    design = 'aura',
+    evt = 'aura',
+    intf = 'aura',
     mdx = 'mdx',
+    tokens = 'aura',
+    trigger = 'apex',
   },
 }

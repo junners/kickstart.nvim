@@ -1,6 +1,24 @@
 local M = {}
 
 local mise = require('config.mise')
+local shell = vim.fn.exepath('sh')
+
+if shell == '' then
+  shell = 'sh'
+end
+
+local apex_jar_path = vim.fs.normalize(vim.fn.expand '~/.config/mise/salesforce/apex/v67.2.0/apex-jorje-lsp.jar')
+local jdtls_path = vim.fs.normalize(vim.fn.expand '~/.config/mise/eclipse/jdtls/1.60.0/bin/jdtls')
+
+local function missing_command(message)
+  return {
+    shell,
+    '-c',
+    'printf "%s\\n" "$1" >&2; exit 127',
+    'sh',
+    message,
+  }
+end
 
 local function on_lsp_attach(event)
   local map = function(keys, func, desc, mode)
@@ -64,10 +82,95 @@ local function with_mise(tool, args, config)
   return config
 end
 
+local function jdtls_jvm_args()
+  local env = os.getenv 'JDTLS_JVM_ARGS'
+  local args = {}
+
+  for arg in string.gmatch(env or '', '%S+') do
+    table.insert(args, ('--jvm-arg=%s'):format(arg))
+  end
+
+  return args
+end
+
+local function jdtls_config()
+  return {
+    filetypes = { 'java' },
+    root_markers = {
+      'mvnw',
+      'gradlew',
+      'settings.gradle',
+      'settings.gradle.kts',
+      '.git',
+      'build.xml',
+      'pom.xml',
+      'build.gradle',
+      'build.gradle.kts',
+    },
+    on_new_config = function(new_config, new_root_dir)
+      if not vim.uv.fs_stat(jdtls_path) then
+        new_config.cmd = missing_command(
+          ('Missing required JDT LS launcher at %s. Reinstall the Eclipse JDT Language Server archive.'):format(
+            jdtls_path
+          )
+        )
+        return
+      end
+
+      local data_dir = vim.fn.stdpath('cache') .. '/jdtls/workspace'
+      if new_root_dir then
+        data_dir = data_dir .. '/' .. vim.fn.fnamemodify(new_root_dir, ':p:h:t')
+      end
+
+      new_config.cmd = { jdtls_path, '-data', data_dir, table.unpack(jdtls_jvm_args()) }
+    end,
+  }
+end
+
+local function apex_config()
+  return {
+    filetypes = { 'apex' },
+    root_markers = { 'sfdx-project.json' },
+    on_new_config = function(new_config, new_root_dir)
+      if not vim.uv.fs_stat(apex_jar_path) then
+        new_config.cmd = missing_command(
+          ('Missing required Apex language server jar at %s. Reinstall apex-jorje-lsp.jar.'):format(apex_jar_path)
+        )
+        return
+      end
+
+      new_config.cmd = mise.command('java', {
+        '-cp',
+        apex_jar_path,
+        '-Ddebug.internal.errors=true',
+        '-Ddebug.semantic.errors=false',
+        '-Ddebug.completion.statistics=false',
+        '-Dlwc.typegeneration.disabled=true',
+        'apex.jorje.lsp.ApexLanguageServerLauncher',
+      }, { root = new_root_dir })
+    end,
+  }
+end
+
 local function servers()
   return {
+    apex_ls = apex_config(),
+    aura_ls = with_mise('aura-language-server', { '--stdio' }, {
+      filetypes = { 'aura' },
+      root_markers = { 'sfdx-project.json' },
+    }),
+    jdtls = jdtls_config(),
     ts_ls = with_mise('typescript-language-server', { '--stdio' }),
     kotlin_lsp = with_mise('intellij-server', { '--stdio' }),
+    lwc_ls = with_mise('lwc-language-server', { '--stdio' }, {
+      filetypes = { 'javascript', 'html' },
+      root_markers = { 'sfdx-project.json' },
+      init_options = {
+        embeddedLanguages = {
+          javascript = true,
+        },
+      },
+    }),
     mdx_analyzer = with_mise('mdx-language-server', {
       '--stdio',
     }, {

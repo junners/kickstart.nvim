@@ -174,9 +174,11 @@ end
 
 function M.collect_tools()
   local tools = {
+    'aura-language-server',
     'typescript-language-server',
     'lua-language-server',
     'intellij-server',
+    'lwc-language-server',
     'mdx-language-server',
     'cspell-lsp',
     'prettierd',
