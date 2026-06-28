@@ -9,6 +9,7 @@ end
 
 local apex_jar_path = vim.fs.normalize(vim.fn.expand '~/.config/mise/salesforce/apex/v67.2.0/apex-jorje-lsp.jar')
 local jdtls_path = vim.fs.normalize(vim.fn.expand '~/.config/mise/eclipse/jdtls/1.60.0/bin/jdtls')
+local kotlin_lsp_path = vim.fn.exepath('kotlin-lsp')
 
 local function missing_command(message)
   return {
@@ -71,6 +72,9 @@ end
 local function with_mise(tool, args, config)
   config = config or {}
   local original_on_new_config = config.on_new_config
+  local original_cmd = config.cmd
+
+  config.cmd = original_cmd or mise.command(tool, args)
 
   config.on_new_config = function(new_config, new_root_dir)
     new_config.cmd = mise.command(tool, args, { root = new_root_dir })
@@ -127,6 +131,42 @@ local function jdtls_config()
   }
 end
 
+local function kotlin_lsp_config()
+  if kotlin_lsp_path == '' then
+    return {
+      filetypes = { 'kotlin' },
+      root_markers = {
+        'gradlew',
+        'mvnw',
+        'settings.gradle',
+        'settings.gradle.kts',
+        'build.gradle',
+        'build.gradle.kts',
+        'pom.xml',
+        '.git',
+      },
+      cmd = missing_command(
+        'Missing required Kotlin language server at `kotlin-lsp`. Install `JetBrains/utils/kotlin-lsp` with Homebrew.'
+      ),
+    }
+  end
+
+  return {
+    filetypes = { 'kotlin' },
+    root_markers = {
+      'gradlew',
+      'mvnw',
+      'settings.gradle',
+      'settings.gradle.kts',
+      'build.gradle',
+      'build.gradle.kts',
+      'pom.xml',
+      '.git',
+    },
+    cmd = { kotlin_lsp_path, '--stdio' },
+  }
+end
+
 local function apex_config()
   return {
     filetypes = { 'apex' },
@@ -161,7 +201,7 @@ local function servers()
     }),
     jdtls = jdtls_config(),
     ts_ls = with_mise('typescript-language-server', { '--stdio' }),
-    kotlin_lsp = with_mise('intellij-server', { '--stdio' }),
+    kotlin_lsp = kotlin_lsp_config(),
     lwc_ls = with_mise('lwc-language-server', { '--stdio' }, {
       filetypes = { 'javascript', 'html' },
       root_markers = { 'sfdx-project.json' },

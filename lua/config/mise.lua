@@ -56,6 +56,40 @@ local function missing_command(message)
   }
 end
 
+local function tool_path(tool, root)
+  local cmd = { 'mise', 'which' }
+  if root then
+    vim.list_extend(cmd, { '-C', root })
+  end
+  table.insert(cmd, tool)
+
+  local result = vim.system(cmd, { text = true }):wait()
+  if result.code ~= 0 then
+    return nil
+  end
+
+  local path = vim.trim(result.stdout or '')
+  if path == '' then
+    return nil
+  end
+
+  return path
+end
+
+local function needs_node_runner(path)
+  local realpath = vim.uv.fs_realpath(path) or path
+  return realpath:match('%.mjs$') or realpath:match('%.cjs$') or realpath:match('%.js$')
+end
+
+local function is_blank_manifest(path)
+  local ok, lines = pcall(vim.fn.readfile, path)
+  if not ok then
+    return false
+  end
+
+  return vim.trim(table.concat(lines, '\n')) == ''
+end
+
 local function normalize_start(start)
   if type(start) == 'number' then
     start = vim.api.nvim_buf_get_name(start)
@@ -79,8 +113,25 @@ end
 
 function M.find_root(start)
   local path = normalize_start(start)
-  local found = vim.fs.find(root_markers, { path = path, upward = true })[1]
-  return found and vim.fs.dirname(found) or nil
+  while path do
+    for _, marker in ipairs(root_markers) do
+      local candidate = vim.fs.joinpath(path, marker)
+      if vim.uv.fs_stat(candidate) then
+        if not is_blank_manifest(candidate) then
+          return path
+        end
+      end
+    end
+
+    local parent = vim.fs.dirname(path)
+    if parent == path then
+      break
+    end
+
+    path = parent
+  end
+
+  return nil
 end
 
 function M.has_mise()
@@ -97,14 +148,7 @@ function M.has_tool(tool, root)
     return tool_cache[key]
   end
 
-  local cmd = { 'mise', 'which' }
-  if root then
-    vim.list_extend(cmd, { '-C', root })
-  end
-  table.insert(cmd, tool)
-
-  local result = vim.system(cmd, { text = true }):wait()
-  local ok = result.code == 0 and result.stdout ~= nil and vim.trim(result.stdout) ~= ''
+  local ok = tool_path(tool, root) ~= nil
   tool_cache[key] = ok
 
   if not ok then
@@ -112,6 +156,14 @@ function M.has_tool(tool, root)
   end
 
   return ok
+end
+
+function M.which(tool, root)
+  if not M.has_mise() then
+    return nil
+  end
+
+  return tool_path(tool, root)
 end
 
 function M.command(tool, args, opts)
@@ -128,26 +180,26 @@ function M.command(tool, args, opts)
   if not M.has_tool(tool, project_root) then
     return missing_command(tool_missing_message(tool, project_root))
   end
-
-  local lookup = project_root and 'toolpath=$(mise which -C "$root" "$tool" 2>/dev/null)' or 'toolpath=$(mise which "$tool" 2>/dev/null)'
-  local message = project_root and 'printf "Missing required project tool \\"%s\\" for %s. Add it to that project\\47s mise.toml and install it; this config will not fall back to PATH.\\n" "$tool" "$root" >&2' or 'printf "Missing required tool \\"%s\\" in the active global mise environment. Install it with mise; this config will not fall back to PATH.\\n" "$tool" >&2'
+  local path = M.which(tool, project_root)
+  if not path then
+    return missing_command(tool_missing_message(tool, project_root))
+  end
 
   local cmd = { 'mise', 'exec' }
   if project_root then
     vim.list_extend(cmd, { '-C', project_root })
   end
-  vim.list_extend(cmd, {
-    '--',
-    shell,
-    '-c',
-    lookup .. ' || { ' .. message .. '; exit 127; }; exec "$toolpath" "$@"',
-    'sh',
-  })
+  table.insert(cmd, '--')
 
-  if project_root then
-    table.insert(cmd, project_root)
+  if needs_node_runner(path) then
+    if not M.has_tool('node', project_root) then
+      return missing_command(tool_missing_message('node', project_root))
+    end
+
+    table.insert(cmd, 'node')
   end
-  table.insert(cmd, tool)
+
+  table.insert(cmd, path)
 
   vim.list_extend(cmd, args or {})
   return cmd
@@ -177,7 +229,6 @@ function M.collect_tools()
     'aura-language-server',
     'typescript-language-server',
     'lua-language-server',
-    'intellij-server',
     'lwc-language-server',
     'mdx-language-server',
     'cspell-lsp',

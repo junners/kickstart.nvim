@@ -12,7 +12,7 @@ local function check_version()
 end
 
 local function check_base_tools()
-  for _, executable in ipairs { 'git', 'make', 'unzip', 'rg', 'mise' } do
+  for _, executable in ipairs { 'git', 'make', 'unzip', 'rg', 'mise', 'kotlin-lsp' } do
     if vim.fn.executable(executable) == 1 then
       vim.health.ok(("Found executable: '%s'"):format(executable))
     else
