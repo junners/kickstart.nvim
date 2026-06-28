@@ -81,7 +81,9 @@ vim.lsp.config = original_config
 vim.lsp.enable = original_enable
 
 local cspell = configs.cspell_ls
+local jdtls = configs.jdtls
 local kotlin = configs.kotlin_lsp
+local jdtls_path = vim.fs.normalize(vim.fn.expand '~/.config/mise/eclipse/jdtls/1.60.0/bin/jdtls')
 local kotlin_lsp_path = vim.fn.exepath('kotlin-lsp')
 
 expect_truthy(type(cspell) == 'table', 'expected cspell_ls config to be registered')
@@ -91,6 +93,11 @@ expect_equal(cspell.cmd[2], 'exec', 'expected cspell_ls to use mise exec')
 expect_equal(cspell.cmd[3], '--', 'expected cspell_ls to avoid forcing a project root at registration time')
 expect_equal(cspell.cmd[4], 'node', 'expected cspell-lsp to run through node when registered')
 expect_truthy(vim.inspect(cspell.cmd):match('cspell%-lsp'), 'expected cspell-lsp entrypoint to be present in the command')
+
+expect_truthy(type(jdtls) == 'table', 'expected jdtls config to be registered')
+expect_truthy(type(jdtls.cmd) == 'table', 'expected jdtls to have a concrete command before root detection')
+expect_equal(jdtls.cmd[1], jdtls_path, 'expected jdtls to use the installed launcher script')
+expect_equal(jdtls.cmd[2], '-data', 'expected jdtls to pass a workspace directory to the launcher')
 
 expect_truthy(type(kotlin) == 'table', 'expected kotlin_lsp config to be registered')
 expect_truthy(type(kotlin.cmd) == 'table', 'expected kotlin_lsp to have a concrete command')

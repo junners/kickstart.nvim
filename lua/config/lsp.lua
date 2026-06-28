@@ -10,6 +10,7 @@ end
 local apex_jar_path = vim.fs.normalize(vim.fn.expand '~/.config/mise/salesforce/apex/v67.2.0/apex-jorje-lsp.jar')
 local jdtls_path = vim.fs.normalize(vim.fn.expand '~/.config/mise/eclipse/jdtls/1.60.0/bin/jdtls')
 local kotlin_lsp_path = vim.fn.exepath('kotlin-lsp')
+local unpack = table.unpack or unpack
 
 local function missing_command(message)
   return {
@@ -97,6 +98,15 @@ local function jdtls_jvm_args()
   return args
 end
 
+local function jdtls_cmd(root_dir)
+  local data_dir = vim.fn.stdpath('cache') .. '/jdtls/workspace'
+  if root_dir then
+    data_dir = data_dir .. '/' .. vim.fn.fnamemodify(root_dir, ':p:h:t')
+  end
+
+  return { jdtls_path, '-data', data_dir, unpack(jdtls_jvm_args()) }
+end
+
 local function jdtls_config()
   return {
     filetypes = { 'java' },
@@ -111,6 +121,13 @@ local function jdtls_config()
       'build.gradle',
       'build.gradle.kts',
     },
+    cmd = vim.uv.fs_stat(jdtls_path)
+        and jdtls_cmd()
+        or missing_command(
+          ('Missing required JDT LS launcher at %s. Reinstall the Eclipse JDT Language Server archive.'):format(
+            jdtls_path
+          )
+        ),
     on_new_config = function(new_config, new_root_dir)
       if not vim.uv.fs_stat(jdtls_path) then
         new_config.cmd = missing_command(
@@ -121,12 +138,7 @@ local function jdtls_config()
         return
       end
 
-      local data_dir = vim.fn.stdpath('cache') .. '/jdtls/workspace'
-      if new_root_dir then
-        data_dir = data_dir .. '/' .. vim.fn.fnamemodify(new_root_dir, ':p:h:t')
-      end
-
-      new_config.cmd = { jdtls_path, '-data', data_dir, table.unpack(jdtls_jvm_args()) }
+      new_config.cmd = jdtls_cmd(new_root_dir)
     end,
   }
 end

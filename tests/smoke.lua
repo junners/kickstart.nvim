@@ -17,6 +17,9 @@ expect(package.loaded.plugins ~= nil, 'expected plugins module to load')
 expect(vim.fn.exists(':Mason') == 0, 'expected Mason commands to be absent')
 expect(vim.fn.isdirectory(vim.fn.stdpath('config') .. '/lua/kickstart') == 0, 'expected legacy lua/kickstart tree to be removed')
 expect(vim.fn.isdirectory(vim.fn.stdpath('config') .. '/lua/custom') == 0, 'expected legacy lua/custom tree to be removed')
+local gl_map = vim.fn.maparg('gl', 'n', false, true)
+expect(gl_map.callback ~= nil, 'expected gl to open diagnostics in a floating window')
+expect(gl_map.desc == 'Show line diagnostics in a floating window', 'expected gl to be described correctly')
 
 if #failures > 0 then
   error(table.concat(failures, '\n'))
