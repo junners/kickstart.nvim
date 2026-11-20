@@ -9,7 +9,7 @@ if shell == '' then
   shell = 'sh'
 end
 
-local unpack = table.unpack
+local unpack = table.unpack or unpack
 
 local function dedupe_key(...)
   return table.concat({ ... }, '\0')
